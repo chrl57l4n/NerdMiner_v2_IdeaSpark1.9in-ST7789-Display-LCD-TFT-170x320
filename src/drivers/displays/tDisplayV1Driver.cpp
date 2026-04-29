@@ -10,6 +10,7 @@
 #include "monitor.h"
 #include "OpenFontRender.h"
 #include "rotation.h"
+#include "../../motoko_screen.h"
 
 #define WIDTH 320
 #define HEIGHT 170
@@ -259,7 +260,7 @@ void tDisplay_DoLedStuff(unsigned long frame)
 {
 }
 
-CyclicScreenFunction tDisplayCyclicScreens[] = {tDisplay_MinerScreen, tDisplay_ClockScreen, tDisplay_GlobalHashScreen};
+CyclicScreenFunction tDisplayCyclicScreens[] = {tDisplay_MinerScreen, tDisplay_ClockScreen, tDisplay_GlobalHashScreen, tDisplay_MotokoScreen};
 
 DisplayDriver tDisplayV1Driver = {
     tDisplay_Init,
@@ -275,3 +276,81 @@ DisplayDriver tDisplayV1Driver = {
     WIDTH,
     HEIGHT};
 #endif
+// Inhalt zum Anhängen an src/drivers/displays/tDisplayV1Driver.cpp
+// im Pixelssquad-Fork (NerdMiner_v2_IdeaSpark1.9in-ST7789-Display-LCD-TFT-170x320)
+// — basiert auf #ifdef V1_DISPLAY Block + nutzt sprite-Pattern.
+
+#include "../../monitor.h"
+#include "../../motoko_screen.h"
+#include "displayDriver.h"
+#include <TFT_eSPI.h>
+#include "OpenFontRender.h"
+
+extern TFT_eSPI tft;
+extern TFT_eSprite background;
+extern OpenFontRender render;
+
+// Layout für T-Display S3 (320×170), Landscape via ROTATION_90
+// — alles in background-Sprite gerendert, dann pushSprite ins TFT
+void tDisplay_MotokoScreen(unsigned long mElapsed) {
+    motoko_data data = motoko_getData();
+
+    background.fillSprite(TFT_BLACK);
+
+    if (!data.valid) {
+        background.setTextColor(TFT_DARKGREY, TFT_BLACK);
+        background.setTextFont(2);
+        background.setTextSize(2);
+        background.drawCentreString("Motoko --", 160, 60, 1);
+        background.setTextSize(1);
+        background.drawCentreString("waiting for data", 160, 100, 1);
+        background.pushSprite(0, 0);
+        return;
+    }
+
+    // ── BTC-Preis (oben, gross zentriert) ──────────────────────
+    background.setTextColor(TFT_WHITE, TFT_BLACK);
+    background.setTextSize(1);
+    render.setFontSize(48);
+    render.rdrawString(("$" + String(data.btc_usd)).c_str(), 200, 5, TFT_WHITE);
+
+    // ── 24h-Change (oben rechts vom Preis) ─────────────────────
+    bool up = data.btc_change_24h >= 0.0f;
+    uint16_t changeColor = up ? TFT_GREEN : TFT_RED;
+    String chgStr = (up ? "+" : "") + String(data.btc_change_24h, 1) + "%";
+    render.setFontSize(20);
+    render.rdrawString(chgStr.c_str(), 315, 18, changeColor);
+
+    // ── FnG-Zeile (links, mit Zone-Farbe) ──────────────────────
+    uint16_t fngColor = TFT_YELLOW;
+    if (data.fng_value <= 25) fngColor = TFT_RED;
+    else if (data.fng_value <= 45) fngColor = TFT_ORANGE;
+    else if (data.fng_value >= 75) fngColor = TFT_GREEN;
+    render.setFontSize(22);
+    String fngStr = "FnG " + String(data.fng_value) + "  " + data.fng_class;
+    render.rdrawString(fngStr.c_str(), 315, 58, fngColor);
+
+    // ── Block + Mempool-Fee (mittlere Zeile) ───────────────────
+    render.setFontSize(18);
+    String blockStr = "Block " + String(data.block_height);
+    render.rdrawString(blockStr.c_str(), 315, 88, TFT_LIGHTGREY);
+
+    String feeStr = String(data.median_fee_sat_vb) + " sat/vB";
+    render.rdrawString(feeStr.c_str(), 315, 110, TFT_LIGHTGREY);
+
+    // ── Halving-Countdown (unten links) ────────────────────────
+    String halvingStr = "Halving " + String(data.halving_days) + "d";
+    render.rdrawString(halvingStr.c_str(), 160, 135, TFT_CYAN);
+
+    // ── Pi-LNbits Saldo (unten rechts, Lightning-orange) ──────
+    String lnStr = String(data.pi_lnbits_sats) + " sats";
+    render.rdrawString(lnStr.c_str(), 315, 135, TFT_ORANGE);
+
+    // Bottom-bar mit Motoko-Label
+    background.fillRect(0, 158, 320, 12, TFT_DARKGREY);
+    background.setTextColor(TFT_BLACK, TFT_DARKGREY);
+    background.setTextSize(1);
+    background.drawString("Motoko Stats", 5, 160);
+
+    background.pushSprite(0, 0);
+}

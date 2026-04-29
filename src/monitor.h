@@ -7,7 +7,8 @@
 #define SCREEN_MINING   0
 #define SCREEN_CLOCK    1
 #define SCREEN_GLOBAL   2
-#define NO_SCREEN       3   //Used when board has no TFT
+#define SCREEN_MOTOKO   3
+#define NO_SCREEN       4   //Used when board has no TFT
 
 //Time update period
 #define UPDATE_PERIOD_h   5

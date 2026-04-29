@@ -11,6 +11,7 @@
 #include "wManager.h"
 #include "mining.h"
 #include "monitor.h"
+#include "motoko_screen.h"
 #include "drivers/displays/display.h"
 #include "drivers/storage/SDCard.h"
 #include "timeconst.h"
@@ -150,6 +151,7 @@ void setup()
 
   /******** MONITOR SETUP *****/
   setup_monitor();
+  motoko_setup();
 }
 
 void app_error_fault_handler(void *arg) {
@@ -177,6 +179,7 @@ void loop() {
   touchHandler.isTouched();
 #endif
   wifiManagerProcess(); // avoid delays() in loop when non-blocking and other long running code
+  motoko_update();      // 60s-poll Pi-Dashboard JSON (NOOP wenn nicht due)
 
   vTaskDelay(50 / portTICK_PERIOD_MS);
 }
